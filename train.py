@@ -17,8 +17,11 @@ def query_to_df(prom, query, start_time, end_time, step):
     df['y'] = df['y'].astype(float)
     return df
 
-def fit_predict(df, interval_width=0.99, periods=1440, freq='5min'):
+def fit_predict(df, interval_width=0.99, periods=1440, freq='5min', season=None):
     m = Prophet(interval_width=interval_width)
+    if season is not None:
+        for name, val in season.items():
+            m.add_seasonality(name=name, period=val[0], fourier_order=val[1])
     m.fit(df)
     future = m.make_future_dataframe(periods=periods, freq=freq)
     forecast = m.predict(future)
@@ -31,7 +34,7 @@ if __name__ == '__main__':
     args = get_params()
 
     # connect to prometheus
-    prom = PrometheusConnect(url ="http://localhost:9090", disable_ssl=True)
+    prom = PrometheusConnect(url =args.url, disable_ssl=True)
 
     # get random 3 metrics
     # metrics = np.random.choice(prom.all_metrics(),size=3,replace=False) 
@@ -40,9 +43,15 @@ if __name__ == '__main__':
     with open('test_queries.txt') as f:
         queries = f.read().splitlines()
 
+    # check for special seasonalities:
+    season=None
+    if args.seasonality_vals is not None:
+        season = {i:[j, k] for i, j, k in zip(args.seasonality_names, args.seasonality_vals,
+                                                args.seasonality_fourier)}
+
     for q in queries:
         df = query_to_df(prom, q, args.start_time, args.end_time, args.step)
-        m, forecast = fit_predict(df, periods=300, freq='5s')
+        m, forecast = fit_predict(df, periods=args.periods, freq=args.freq, season=season)
         forecast.to_csv('forecasts/' + q + '.csv')
         if args.debug:
             m.plot(forecast)

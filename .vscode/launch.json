@@ -9,7 +9,17 @@
             "type": "python",
             "request": "launch",
             "program": "${file}",
-            "args": ["--start_time", "3h", "--step", "5s"],
+            "args": [
+                        "--start_time", "2021-11-20 12:00:00",
+                        "--end_time", "2021-11-21 12:00:00",
+                        "--step", "15s",
+                        "--periods", "172",
+                        "--freq", "30s",
+                        "--debug",
+                        "--seasonality_vals", "0.166667",
+                        "--seasonality_names", "hourly",
+                        "--seasonality_fourier", "10" 
+                    ],
             "console": "integratedTerminal"
         }
     ]
