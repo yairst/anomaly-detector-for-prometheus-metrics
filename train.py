@@ -2,20 +2,9 @@ import pandas as pd
 from prophet import Prophet
 from matplotlib import pyplot as plt
 from prometheus_api_client import PrometheusConnect
-from prometheus_api_client.utils import parse_datetime
 from arguments import get_params
+from utils import query_to_df
 
-def query_to_df(prom, query, start_time, end_time, step):
-    start_time = parse_datetime(start_time)
-    end_time = parse_datetime(end_time)
-    query_range = prom.custom_query_range(query ,
-                                start_time=start_time,
-                                end_time=end_time,
-                                step=step)
-    df = pd.DataFrame(query_range[0]['values'],columns=['ds','y'])
-    df['ds'] = pd.to_datetime(df['ds'],unit='s').astype('datetime64[ns, Asia/Jerusalem]').dt.tz_localize(None)
-    df['y'] = df['y'].astype(float)
-    return df
 
 def fit_predict(df, interval_width=0.99, periods=1440, freq='5min', season=None):
     m = Prophet(interval_width=interval_width)
@@ -52,7 +41,9 @@ if __name__ == '__main__':
     for q in queries:
         df = query_to_df(prom, q, args.start_time, args.end_time, args.step)
         m, forecast = fit_predict(df, periods=args.periods, freq=args.freq, season=season)
-        forecast.to_csv('forecasts/' + q + '.csv')
+        #TODO: save only the future data to reduce loading time in the detector
+        forecast_only_future = forecast[forecast['ds'] > args.end_time]
+        forecast_only_future.to_csv('forecasts/' + q + '.csv', index=False)
         if args.debug:
             m.plot(forecast)
             plt.show()
