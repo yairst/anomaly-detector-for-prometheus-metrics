@@ -5,21 +5,33 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python: Current File",
+            "name": "Python: detect",
             "type": "python",
             "request": "launch",
-            "program": "${file}",
+            "program": "detect.py",
             "args": [
-                        "--start_time", "2021-11-20 12:00:00",
-                        "--end_time", "2021-11-21 12:00:00",
-                        "--step", "15s",
-                        "--periods", "172",
-                        "--freq", "30s",
-                        "--debug",
-                        "--seasonality_vals", "0.166667",
-                        "--seasonality_names", "hourly",
-                        "--seasonality_fourier", "10" 
-                    ],
+                "--start_time", "2021-11-21 12:15:00",
+                "--end_time", "2021-11-21 12:17:15",
+                "--step", "15s",
+            ],
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Python: tarin",
+            "type": "python",
+            "request": "launch",
+            "program": "train.py",
+            "args": [
+                "--start_time", "2021-11-20 12:00:00",
+                "--end_time", "2021-11-21 12:00:00",
+                "--step", "15s",
+                "--periods", "172",
+                "--freq", "30s",
+                "--debug",
+                "--seasonality_vals", "0.166667",
+                "--seasonality_names", "hourly",
+                "--seasonality_fourier", "10"
+            ],
             "console": "integratedTerminal"
         }
     ]

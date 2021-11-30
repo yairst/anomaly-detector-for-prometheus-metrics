@@ -41,7 +41,6 @@ if __name__ == '__main__':
     for q in queries:
         df = query_to_df(prom, q, args.start_time, args.end_time, args.step)
         m, forecast = fit_predict(df, periods=args.periods, freq=args.freq, season=season)
-        #TODO: save only the future data to reduce loading time in the detector
         forecast_only_future = forecast[forecast['ds'] > args.end_time]
         forecast_only_future.to_csv('forecasts/' + q + '.csv', index=False)
         if args.debug:

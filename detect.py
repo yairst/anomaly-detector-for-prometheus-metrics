@@ -2,6 +2,7 @@ import pandas as pd
 from utils import query_to_df
 from prometheus_api_client import PrometheusConnect
 from prometheus_api_client.utils import parse_datetime
+from arguments import get_params
 
 # start simple:
 # 1. read one forecast csv file
@@ -11,11 +12,14 @@ from prometheus_api_client.utils import parse_datetime
 
 
 if __name__ == '__main__':
+
+    # get args
+    args = get_params()
     
     # start and end time for the last 10 samples
-    start_time = parse_datetime("2021-11-21 12:15:00")
-    end_time = parse_datetime("2021-11-21 12:17:15")
-    step = '15s'
+    start_time = parse_datetime(args.start_time)
+    end_time = parse_datetime(args.end_time)
+    step = args.step
 
     # read forecast and cut only the relevant timestamps
     pred = pd.read_csv('forecasts/go_memstats_alloc_bytes.csv',parse_dates=['ds'])
@@ -25,11 +29,11 @@ if __name__ == '__main__':
     pred = pred[(pred['ds'] >= start_time) & (pred['ds'] <= end_time)].reset_index()
 
     # connect to prometheus
-    prom = PrometheusConnect(url ='http://localhost:9090', disable_ssl=True)
+    prom = PrometheusConnect(url=args.url, disable_ssl=True)
 
     # read last 10 samples from prometheus
     actual = query_to_df(prom, 'go_memstats_alloc_bytes', start_time, end_time, step)
 
     # check for anomaly:
     is_anomaly = int(((actual.y > pred.yhat_upper) | (actual.y < pred.yhat_lower)).sum() >= 5)
-
+    print(is_anomaly)
