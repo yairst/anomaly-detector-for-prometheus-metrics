@@ -1,1 +1,6 @@
 *.docx
+/.ipynb_checkpoints
+/__pycache__
+/forecasts
+*.csv
+/.vscode
