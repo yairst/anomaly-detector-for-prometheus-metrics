@@ -1,2 +1,3 @@
-go_memstats_alloc_bytes
-rate(go_memstats_alloc_bytes_total[1m])
+#go_memstats_alloc_bytes
+#rate(go_memstats_alloc_bytes_total[1m])
+prometheus_tsdb_head_chunks
