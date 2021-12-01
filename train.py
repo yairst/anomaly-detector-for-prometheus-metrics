@@ -4,6 +4,7 @@ from matplotlib import pyplot as plt
 from prometheus_api_client import PrometheusConnect
 from arguments import get_params
 from utils import query_to_df
+from feature_engine.outliers import Winsorizer
 
 
 def fit_predict(df, interval_width=0.99, periods=1440, freq='5min', season=None):
@@ -39,13 +40,17 @@ if __name__ == '__main__':
                                                 args.seasonality_fourier)}
 
     for q in queries:
-        df = query_to_df(prom, q, args.start_time, args.end_time, args.step)
-        m, forecast = fit_predict(df, periods=args.periods, freq=args.freq, season=season)
-        forecast_only_future = forecast[forecast['ds'] > args.end_time]
-        forecast_only_future.to_csv('forecasts/' + q + '.csv', index=False)
-        if args.debug:
-            m.plot(forecast)
-            plt.show()
+        if q[0] != "#":
+            df = query_to_df(prom, q, args.start_time, args.end_time, args.step)
+            if args.winsorizing:
+                wins = Winsorizer(capping_method='iqr',tail='both', fold=1.5)
+                df['y'] = wins.fit_transform(pd.DataFrame(df['y']))
+            m, forecast = fit_predict(df, periods=args.periods, freq=args.freq, season=season)
+            forecast_only_future = forecast[forecast['ds'] > args.end_time]
+            forecast_only_future.to_csv('forecasts/' + q + '.csv', index=False)
+            if args.debug:
+                m.plot(forecast)
+                plt.show()
 
     # df = pd.read_csv('example_wp_log_peyton_manning.csv', parse_dates=['ds'])
     # m, forecast = fit_predict(df, periods=365, freq='D')
