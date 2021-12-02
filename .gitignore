@@ -4,3 +4,5 @@
 /forecasts
 *.csv
 /.vscode
+/prophet_*
+/archive
