@@ -10,8 +10,9 @@ from feature_engine.outliers import Winsorizer
 def fit_predict(df, interval_width=0.99, periods=1440, freq='5min', season=None):
     m = Prophet(interval_width=interval_width)
     if season is not None:
-        for name, val in season.items():
-            m.add_seasonality(name=name, period=val[0], fourier_order=val[1])
+        for name, val, f_order in zip(season['names'], season['vals'], season['fourier']):
+            m.add_seasonality(name=name, period=val, fourier_order=f_order)
+
     m.fit(df)
     future = m.make_future_dataframe(periods=periods, freq=freq)
     forecast = m.predict(future)
@@ -26,9 +27,6 @@ if __name__ == '__main__':
     # connect to prometheus
     prom = PrometheusConnect(url =args.url, disable_ssl=True)
 
-    # get random 3 metrics
-    # metrics = np.random.choice(prom.all_metrics(),size=3,replace=False) 
-
     # get queries list from file
     with open('test_queries.txt') as f:
         queries = f.read().splitlines()
@@ -36,8 +34,10 @@ if __name__ == '__main__':
     # check for special seasonalities:
     season=None
     if args.seasonality_vals is not None:
-        season = {i:[j, k] for i, j, k in zip(args.seasonality_names, args.seasonality_vals,
-                                                args.seasonality_fourier)}
+        season = {}
+        season['names'] = args.seasonality_names
+        season['vals'] = args.seasonality_vals
+        season['fourier'] = args.seasonality_fourier
 
     for q in queries:
         if q[0] != "#":
@@ -51,10 +51,4 @@ if __name__ == '__main__':
             if args.debug:
                 m.plot(forecast)
                 plt.show()
-
-    # df = pd.read_csv('example_wp_log_peyton_manning.csv', parse_dates=['ds'])
-    # m, forecast = fit_predict(df, periods=365, freq='D')
-    # forecast.to_csv('forecast.csv')
-    # m.plot(forecast)
-    # plt.show()
     
