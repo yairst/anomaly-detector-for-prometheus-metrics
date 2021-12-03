@@ -1,5 +1,5 @@
 import pandas as pd
-from utils import query_to_df
+from utils import query_to_df, get_queries
 from prometheus_api_client import PrometheusConnect
 from prometheus_api_client.utils import parse_datetime
 from arguments import get_params
@@ -46,21 +46,22 @@ if __name__ == '__main__':
     # get args
     args = get_params()
     
-    # start and end time for the last 10 samples
-    forecast = "prometheus_tsdb_head_chunks"
-
-    # read forecast and cut only the relevant timestamps
-    pred = get_forecast_slice(forecast,
-                              start_time=args.start_time,
-                              end_time=args.end_time,
-                              step=args.step)
-
     # connect to prometheus
     prom = PrometheusConnect(url=args.url, disable_ssl=True)
 
-    # read last 10 samples from prometheus
-    actual = query_to_df(prom, forecast, args.start_time, args.end_time, args.step)
+    # get queries list from file
+    queries = get_queries('test_queries.txt')
 
-    # check for anomaly:
-    anomaly = is_anomaly(actual, pred)
-    print(anomaly)
+    for query in queries:
+        # read forecast and cut only the relevant timestamps
+        pred = get_forecast_slice(query,
+                                start_time=args.start_time,
+                                end_time=args.end_time,
+                                step=args.step)
+
+        # read last 10 samples from prometheus
+        actual = query_to_df(prom, query, args.start_time, args.end_time, args.step)
+
+        # check for anomaly:
+        anomaly = is_anomaly(actual, pred)
+        print("query: {} anomaly state is {}.".format(query, anomaly))

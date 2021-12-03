@@ -12,3 +12,11 @@ def query_to_df(prom, query, start_time, end_time, step):
     df['ds'] = pd.to_datetime(df['ds'],unit='s').astype('datetime64[ns, Asia/Jerusalem]').dt.tz_localize(None)
     df['y'] = df['y'].astype(float)
     return df
+
+def get_queries(file_path):
+    # get queries list from file
+    with open(file_path) as f:
+        queries = f.read().splitlines()
+    # remove commented queries from list:
+    queries = [q for q in queries if not q.startswith("#")]
+    return queries

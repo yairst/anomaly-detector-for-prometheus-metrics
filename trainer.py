@@ -3,7 +3,7 @@ from prophet import Prophet
 from matplotlib import pyplot as plt
 from prometheus_api_client import PrometheusConnect
 from arguments import get_params
-from utils import query_to_df
+from utils import query_to_df, get_queries
 from feature_engine.outliers import Winsorizer
 
 
@@ -28,8 +28,7 @@ if __name__ == '__main__':
     prom = PrometheusConnect(url =args.url, disable_ssl=True)
 
     # get queries list from file
-    with open('test_queries.txt') as f:
-        queries = f.read().splitlines()
+    queries = get_queries('test_queries.txt')
 
     # check for special seasonalities:
     season=None
@@ -39,16 +38,15 @@ if __name__ == '__main__':
         season['vals'] = args.seasonality_vals
         season['fourier'] = args.seasonality_fourier
 
-    for q in queries:
-        if q[0] != "#":
-            df = query_to_df(prom, q, args.start_time, args.end_time, args.step)
-            if args.winsorizing:
-                wins = Winsorizer(capping_method='iqr',tail='both', fold=1.5)
-                df['y'] = wins.fit_transform(pd.DataFrame(df['y']))
-            m, forecast = fit_predict(df, periods=args.periods, freq=args.freq, season=season)
-            forecast_only_future = forecast[forecast['ds'] > args.end_time]
-            forecast_only_future.to_csv('forecasts/' + q + '.csv', index=False)
-            if args.debug:
-                m.plot(forecast)
-                plt.show()
+    for query in queries:
+        df = query_to_df(prom, query, args.start_time, args.end_time, args.step)
+        if args.winsorizing:
+            wins = Winsorizer(capping_method='iqr',tail='both', fold=1.5)
+            df['y'] = wins.fit_transform(pd.DataFrame(df['y']))
+        m, forecast = fit_predict(df, periods=args.periods, freq=args.freq, season=season)
+        forecast_only_future = forecast[forecast['ds'] > args.end_time]
+        forecast_only_future.to_csv('forecasts/' + query + '.csv', index=False)
+        if args.debug:
+            m.plot(forecast)
+            plt.show()
     
