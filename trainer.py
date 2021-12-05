@@ -3,7 +3,7 @@ from prophet import Prophet
 from matplotlib import pyplot as plt
 from prometheus_api_client import PrometheusConnect
 from arguments import get_params
-from utils import query_to_df, get_queries
+from utils import query_to_df, get_queries, query_to_metrics_list, get_full_metric_name
 from feature_engine.outliers import Winsorizer
 
 
@@ -39,14 +39,18 @@ if __name__ == '__main__':
         season['fourier'] = args.seasonality_fourier
 
     for query in queries:
-        df = query_to_df(prom, query, args.start_time, args.end_time, args.step)
-        if args.winsorizing:
-            wins = Winsorizer(capping_method='iqr',tail='both', fold=1.5)
-            df['y'] = wins.fit_transform(pd.DataFrame(df['y']))
-        m, forecast = fit_predict(df, periods=args.periods, freq=args.freq, season=season)
-        forecast_only_future = forecast[forecast['ds'] > args.end_time]
-        forecast_only_future.to_csv('forecasts/' + query + '.csv', index=False)
-        if args.debug:
-            m.plot(forecast)
-            plt.show()
+        metrics_list = query_to_metrics_list(prom, query, args.start_time, args.end_time, args.step)
+        # df = query_to_df(prom, query, args.start_time, args.end_time, args.step)
+        for metric in metrics_list:
+            df = metric.metric_values
+            if args.winsorizing:
+                wins = Winsorizer(capping_method='iqr',tail='both', fold=1.5)
+                df['y'] = wins.fit_transform(pd.DataFrame(df['y']))
+            m, forecast = fit_predict(df, periods=args.periods, freq=args.freq, season=season)
+            forecast_only_future = forecast[forecast['ds'] > args.end_time]
+            metric_name = get_full_metric_name(metric)
+            forecast_only_future.to_csv('forecasts/' + metric_name + '.csv', index=False)
+            if args.debug:
+                m.plot(forecast)
+                plt.show()
     
