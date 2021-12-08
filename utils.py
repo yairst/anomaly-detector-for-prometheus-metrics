@@ -20,7 +20,7 @@ def get_queries(file_path):
     with open(file_path) as f:
         queries = f.read().splitlines()
     # remove commented queries from list:
-    queries = [q for q in queries if not q.startswith("#")]
+    queries = [q for q in queries if (len(q) > 0) and (not q.startswith("#"))]
     return queries
 
 def query_to_df_new(prom, query, start_time, end_time, step):
