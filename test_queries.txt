@@ -1,9 +1,0 @@
-# single-time-series metrics:
-#go_memstats_alloc_bytes
-prometheus_tsdb_head_chunks
-
-# multi-time-series metric:
-prometheus_target_interval_length_seconds
-
-# single-time-series rule:
-instance_job:go_memstats_alloc_bytes:rate5m

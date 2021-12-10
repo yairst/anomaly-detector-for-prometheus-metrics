@@ -3,8 +3,10 @@ from prophet import Prophet
 from matplotlib import pyplot as plt
 from prometheus_api_client import PrometheusConnect
 from arguments import get_params
-from utils import query_to_df, get_queries, query_to_metrics_list, get_full_metric_name
+from utils import get_metrics_from_file, get_metric_list, get_full_metric_name
 from feature_engine.outliers import Winsorizer
+import pickle
+import platform
 
 
 def fit_predict(df, interval_width=0.99, periods=1440, freq='5min', season=None):
@@ -27,8 +29,8 @@ if __name__ == '__main__':
     # connect to prometheus
     prom = PrometheusConnect(url =args.url, disable_ssl=True)
 
-    # get queries list from file
-    queries = get_queries('test_queries.txt')
+    # get metrics list from file
+    metrics = get_metrics_from_file('test_metrics.txt')
 
     # check for special seasonalities:
     season=None
@@ -38,19 +40,25 @@ if __name__ == '__main__':
         season['vals'] = args.seasonality_vals
         season['fourier'] = args.seasonality_fourier
 
-    for query in queries:
-        metrics_list = query_to_metrics_list(prom, query, args.start_time, args.end_time, args.step)
-        # df = query_to_df(prom, query, args.start_time, args.end_time, args.step)
-        for metric in metrics_list:
-            df = metric.metric_values
+    for metric in metrics:
+        metrics_list = get_metric_list(prom, metric, args.start_time, args.end_time, args.step)
+        forecasted_metrics_list = []
+        for metric_obj in metrics_list:
+            df = metric_obj.metric_values
             if args.winsorizing:
                 wins = Winsorizer(capping_method='iqr',tail='both', fold=1.5)
                 df['y'] = wins.fit_transform(pd.DataFrame(df['y']))
             m, forecast = fit_predict(df, periods=args.periods, freq=args.freq, season=season)
             forecast_only_future = forecast[forecast['ds'] > args.end_time]
-            metric_name = get_full_metric_name(metric)
-            forecast_only_future.to_csv('forecasts/' + metric_name + '.csv', index=False)
+            metric_obj.metric_values = forecast_only_future
+            forecasted_metrics_list.append(metric_obj)
             if args.debug:
                 m.plot(forecast)
+                plt.title(metric_obj.metric_name + str(metric_obj.label_config))
                 plt.show()
+        if platform.system() == 'Windows':
+            metric = metric.replace(":","$")
+        with open('forecasts/' + metric + '.pkl', 'wb') as outp:
+            pickle.dump(forecasted_metrics_list, outp)
+
     
