@@ -1,30 +1,38 @@
 import pandas as pd
-from utils import query_to_df, get_queries
+from utils import get_metrics_from_file, get_metric_list, get_full_metric_name
 from prometheus_api_client import PrometheusConnect
 from prometheus_api_client.utils import parse_datetime
 from arguments import get_params
+import pickle
+import platform
 
 
-def get_forecast_slice(forecast, start_time="10min", end_time="now", step='1min'):
+def get_slice_from_ts(ts, start_time="10min", end_time="now", step='1min'):
+    """
+    Returns resampled slice from time-series data frame.
+
+    Data frame should have column named 'ds' of type Datetime
+
+    The slice is resampled by the period time defined in `step`, where `step` should be not higher
+    than the period time of the time-series
+    """
     # convert start and end times to datetime objects:
     start_time = parse_datetime(start_time)
     end_time = parse_datetime(end_time)
-
-    # read forecast
-    pred = pd.read_csv('forecasts/' + forecast + '.csv',parse_dates=['ds'])
     
-    # first slice: little wider in both sides to deal with the fact that the period time of the query ("step")
-    # is always not higher than the period time of the forecast ("freq"):
-    freq = pred.iloc[-1,0] - pred.iloc[-2,0]
-    pred = pred[(pred['ds'] >= start_time - freq) & (pred['ds'] <= end_time + freq)]
+    # first slicing: little wider in both sides to deal with the fact that the desired period time ("step")
+    # is always not higher than the period time of the ts (extracted as "freq"):
+    freq = ts.iloc[-1,0] - ts.iloc[-2,0]
+    slice = ts[(ts['ds'] >= start_time - freq) & (ts['ds'] <= end_time + freq)]
 
-    # resample to the period time of the query (because the use of bfill() - need to set "ds" as index):
-    pred = pred.set_index('ds').resample(step).bfill()
+    # resample to the desired period time, step (because the use of bfill() - need to set "ds" as index):
+    slice = slice.set_index('ds').resample(step).bfill()
 
-    # second slice: to get identical timestamp to the query (and reset_index to get identical index to query):
-    pred = pred[start_time:end_time].reset_index()
+    # second slicing: to get the desired range:
+    slice = slice[start_time:end_time].reset_index()
 
-    return pred
+    return slice
+    # return pd.DataFrame([1,2,3])
 
 def is_anomaly(actual, pred, anomaly_type="upper"):
     """ anomaly_type: string, default: "upper".
@@ -49,19 +57,33 @@ if __name__ == '__main__':
     # connect to prometheus
     prom = PrometheusConnect(url=args.url, disable_ssl=True)
 
-    # get queries list from file
-    queries = get_queries('test_queries.txt')
+    # get metrics list from file
+    metrics = get_metrics_from_file('test_metrics.txt')
 
-    for query in queries:
-        # read forecast and cut only the relevant timestamps
-        pred = get_forecast_slice(query,
-                                start_time=args.start_time,
-                                end_time=args.end_time,
-                                step=args.step)
+    for metric in metrics:
+        
+        # get forecasts for metric (potentially multiple time-series)
+        # forecasts are list of Metric objects
+        if platform.system() == 'Windows':
+            metric = metric.replace(":","$")
+        with open('forecasts/' + metric + '.pkl', 'rb') as inp:
+            metrics_list = pickle.load(inp)
 
-        # read last 10 samples from prometheus
-        actual = query_to_df(prom, query, args.start_time, args.end_time, args.step)
+        for metric_obj in metrics_list:
+            # read forecast and cut only the relevant timestamps
+            df = metric_obj.metric_values
+            pred = get_slice_from_ts(df,
+                                    start_time=args.start_time,
+                                    end_time=args.end_time,
+                                    step=args.step)
 
-        # check for anomaly:
-        anomaly = is_anomaly(actual, pred)
-        print("query: {} anomaly state is {}.".format(query, anomaly))
+            # read actual metric from prometheus
+            metirc_full_name = get_full_metric_name(metric_obj)
+            # since we call get_metric_list on specific metric (only one time-series) we expect to get
+            # one element list, hence the [0]
+            actual = get_metric_list(prom, metirc_full_name,
+                                    args.start_time, args.end_time, args.step)[0].metric_values
+
+            # check for anomaly:
+            anomaly = is_anomaly(actual, pred)
+            print("\nmetric: {} anomaly state is {}.\n".format(metirc_full_name, anomaly))

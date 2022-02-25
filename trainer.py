@@ -3,11 +3,27 @@ from prophet import Prophet
 from matplotlib import pyplot as plt
 from prometheus_api_client import PrometheusConnect
 from arguments import get_params
-from utils import query_to_df, get_queries
+from utils import get_metrics_from_file, get_metric_list
 from feature_engine.outliers import Winsorizer
+import pickle
+import platform
 
 
-def fit_predict(df, interval_width=0.99, periods=1440, freq='5min', season=None):
+def fit_predict(df, interval_width=0.99, periods=288, freq='5min', season=None):
+    """
+    Returns a tuple of `(m, forecast)` where `m` is a Prophet model fitted to `df` and `forecast`
+    is 4 columns data frame with forecasting data, including history. The columns are:
+    - 'ds': timestamps
+    - 'yhat': the predicted values for the time-series
+    - 'yhat_lower' and 'yhat_upper': uncertainty intervals
+    `periods`: Int number of periods to forecast forward.
+    `freq`: Any valid frequency for pd.date_range, such as 'D' or 'M'. The time period of
+    the forecasted data
+    `season`: optional parameter for adding additional seasonalities to the default ones.
+    A dict with keys: 'names', 'vals' and 'fourier' holding equal length lists with the names of
+    the seasonalities, their periods (float with units of days) and the number of
+    fourier coefficients  accordingly. 
+    """
     m = Prophet(interval_width=interval_width)
     if season is not None:
         for name, val, f_order in zip(season['names'], season['vals'], season['fourier']):
@@ -27,8 +43,8 @@ if __name__ == '__main__':
     # connect to prometheus
     prom = PrometheusConnect(url =args.url, disable_ssl=True)
 
-    # get queries list from file
-    queries = get_queries('test_queries.txt')
+    # get metrics list from file
+    metrics = get_metrics_from_file('test_metrics.txt')
 
     # check for special seasonalities:
     season=None
@@ -38,15 +54,25 @@ if __name__ == '__main__':
         season['vals'] = args.seasonality_vals
         season['fourier'] = args.seasonality_fourier
 
-    for query in queries:
-        df = query_to_df(prom, query, args.start_time, args.end_time, args.step)
-        if args.winsorizing:
-            wins = Winsorizer(capping_method='iqr',tail='both', fold=1.5)
-            df['y'] = wins.fit_transform(pd.DataFrame(df['y']))
-        m, forecast = fit_predict(df, periods=args.periods, freq=args.freq, season=season)
-        forecast_only_future = forecast[forecast['ds'] > args.end_time]
-        forecast_only_future.to_csv('forecasts/' + query + '.csv', index=False)
-        if args.debug:
-            m.plot(forecast)
-            plt.show()
+    for metric in metrics:
+        metrics_list = get_metric_list(prom, metric, args.start_time, args.end_time, args.step)
+        forecasted_metrics_list = []
+        for metric_obj in metrics_list:
+            df = metric_obj.metric_values
+            if args.winsorizing:
+                wins = Winsorizer(capping_method='iqr',tail='both', fold=1.5)
+                df['y'] = wins.fit_transform(pd.DataFrame(df['y']))
+            m, forecast = fit_predict(df, periods=args.periods, freq=args.freq, season=season)
+            forecast_only_future = forecast[forecast['ds'] > args.end_time]
+            metric_obj.metric_values = forecast_only_future
+            forecasted_metrics_list.append(metric_obj)
+            if args.debug:
+                m.plot(forecast)
+                plt.title(metric_obj.metric_name + str(metric_obj.label_config))
+                plt.show()
+        if platform.system() == 'Windows':
+            metric = metric.replace(":","$")
+        with open('forecasts/' + metric + '.pkl', 'wb') as outp:
+            pickle.dump(forecasted_metrics_list, outp)
+
     
