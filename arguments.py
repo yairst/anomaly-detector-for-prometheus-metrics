@@ -18,11 +18,9 @@ def get_params():
                         The desired resolution of the historic data to be fitted.")
     parser.add_argument("--url", default="http://localhost:9090",
                         help="Prometheus url. default: http://localhost:9090")
-    parser.add_argument("--periods", default=1440, type=int,
-                        help="The number of samples need to be forecasted. the default of 1440 stands for \
-                        forecasting 24 hours ahead, assuming 1 minute resolution of the historic data. \
-                        Note that this parameters is depend only on the resolution of the historic data \
-                        and not on the resolution determined in --freq.")
+    parser.add_argument("--periods", default=288, type=int,
+                        help="The number of samples need to be forecasted. the default of 288 stands for \
+                        forecasting 24 hours ahead, assuming 5 minute resolution of the forecasted data.")
     parser.add_argument("--freq",default='5min',
                         help="Any valid frequency for pd.date_range, such as 'D' or 'M', default='5min'. \
                         The desired resolution of the forecasted data points.")

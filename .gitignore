@@ -3,6 +3,7 @@
 /__pycache__
 /forecasts
 *.csv
+*.pkl
 /.vscode
 /prophet_*
 /archive

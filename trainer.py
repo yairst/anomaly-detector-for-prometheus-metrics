@@ -3,13 +3,27 @@ from prophet import Prophet
 from matplotlib import pyplot as plt
 from prometheus_api_client import PrometheusConnect
 from arguments import get_params
-from utils import get_metrics_from_file, get_metric_list, get_full_metric_name
+from utils import get_metrics_from_file, get_metric_list
 from feature_engine.outliers import Winsorizer
 import pickle
 import platform
 
 
-def fit_predict(df, interval_width=0.99, periods=1440, freq='5min', season=None):
+def fit_predict(df, interval_width=0.99, periods=288, freq='5min', season=None):
+    """
+    Returns a tuple of `(m, forecast)` where `m` is a Prophet model fitted to `df` and `forecast`
+    is 4 columns data frame with forecasting data, including history. The columns are:
+    - 'ds': timestamps
+    - 'yhat': the predicted values for the time-series
+    - 'yhat_lower' and 'yhat_upper': uncertainty intervals
+    `periods`: Int number of periods to forecast forward.
+    `freq`: Any valid frequency for pd.date_range, such as 'D' or 'M'. The time period of
+    the forecasted data
+    `season`: optional parameter for adding additional seasonalities to the default ones.
+    A dict with keys: 'names', 'vals' and 'fourier' holding equal length lists with the names of
+    the seasonalities, their periods (float with units of days) and the number of
+    fourier coefficients  accordingly. 
+    """
     m = Prophet(interval_width=interval_width)
     if season is not None:
         for name, val, f_order in zip(season['names'], season['vals'], season['fourier']):
