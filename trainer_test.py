@@ -20,3 +20,8 @@ def test_fit_predict_additional_seasonality():
     m, _ = fit_predict(df, periods=5, freq='D',
                              season={'names':['2days'],'vals':[2],'fourier':[3]})
     assert '2days' in m.seasonalities
+
+# use case 4: adding country holidays
+def test_fit_predict_with_country_holidays():
+    m, _ = fit_predict(df, periods=5, freq='D', country='US')
+    assert m.train_holiday_names is not None

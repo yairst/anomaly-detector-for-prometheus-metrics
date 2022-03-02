@@ -31,6 +31,9 @@ def get_params():
                         help="seasonalities names in the order of seasonalities_vals")
     parser.add_argument("--seasonality_fourier", nargs='+', type=int,
                         help="seasonalities fourier order in the order of seasonalities_vals")
+    parser.add_argument("--country",
+                        help="A string with the ISO 3166-1 alpha-2 code of a country (e.g. 'US', 'IL' etc.). \
+                        Optional argument for adding country holidays to the model")
 
     args, _ = parser.parse_known_args()
     return args

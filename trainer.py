@@ -9,7 +9,8 @@ import pickle
 import platform
 
 
-def fit_predict(df, interval_width=0.99, periods=288, freq='5min', season=None):
+def fit_predict(df, interval_width=0.99, periods=288, freq='5min',
+                season=None, country=None):
     """
     Returns a tuple of `(m, forecast)` where `m` is a Prophet model fitted to `df` and `forecast`
     is 4 columns data frame with forecasting data, including history. The columns are:
@@ -17,18 +18,24 @@ def fit_predict(df, interval_width=0.99, periods=288, freq='5min', season=None):
     - 'yhat': the predicted values for the time-series
     - 'yhat_lower' and 'yhat_upper': uncertainty intervals
     `periods`: Int number of periods to forecast forward.
+
     `freq`: Any valid frequency for pd.date_range, such as 'D' or 'M'. The time period of
     the forecasted data
-    `season`: optional parameter for adding additional seasonalities to the default ones.
+
+    `season`: optional argument for adding additional seasonalities to the default ones.
     A dict with keys: 'names', 'vals' and 'fourier' holding equal length lists with the names of
     the seasonalities, their periods (float with units of days) and the number of
-    fourier coefficients  accordingly. 
+    fourier coefficients  accordingly.
+
+    `country`: optional argument for adding country holidays to the model. A string with the
+    ISO 3166-1 alpha-2 code of the country (e.g. 'US', 'IL' etc.)
     """
     m = Prophet(interval_width=interval_width)
     if season is not None:
         for name, val, f_order in zip(season['names'], season['vals'], season['fourier']):
             m.add_seasonality(name=name, period=val, fourier_order=f_order)
-
+    if country is not None:
+        m.add_country_holidays(country_name=country)
     m.fit(df)
     future = m.make_future_dataframe(periods=periods, freq=freq)
     forecast = m.predict(future)
@@ -62,7 +69,8 @@ if __name__ == '__main__':
             if args.winsorizing:
                 wins = Winsorizer(capping_method='iqr',tail='both', fold=1.5)
                 df['y'] = wins.fit_transform(pd.DataFrame(df['y']))
-            m, forecast = fit_predict(df, periods=args.periods, freq=args.freq, season=season)
+            m, forecast = fit_predict(df, periods=args.periods, freq=args.freq,
+                                    season=season, country=args.country)
             forecast_only_future = forecast[forecast['ds'] > args.end_time]
             metric_obj.metric_values = forecast_only_future
             forecasted_metrics_list.append(metric_obj)
